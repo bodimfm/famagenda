@@ -49,34 +49,51 @@ export function useNotifications() {
   };
 
   useEffect(() => {
-    // Register for push notifications
-    registerForPushNotificationsAsync().then((token) => {
-      if (token) {
-        setExpoPushToken(token);
-      }
-    });
+    let isMounted = true;
+
+    // Register for push notifications (non-blocking)
+    registerForPushNotificationsAsync()
+      .then((token) => {
+        if (isMounted && token) {
+          setExpoPushToken(token);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to register for push notifications:', error);
+      });
 
     // Check if app was opened from a notification
-    getLastNotificationResponse().then((response) => {
-      if (response) {
-        const data = response.notification.request.content.data as NotificationData;
-        handleNotificationNavigation(data);
-      }
-    });
+    getLastNotificationResponse()
+      .then((response) => {
+        if (isMounted && response) {
+          const data = response.notification.request.content.data as NotificationData;
+          handleNotificationNavigation(data);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to get last notification response:', error);
+      });
 
     // Listen for notifications received while app is foregrounded
-    notificationListener.current = addNotificationReceivedListener((notification) => {
-      setNotification(notification);
-    });
+    try {
+      notificationListener.current = addNotificationReceivedListener((notification) => {
+        if (isMounted) {
+          setNotification(notification);
+        }
+      });
 
-    // Listen for notification taps
-    responseListener.current = addNotificationResponseListener((response) => {
-      const data = response.notification.request.content.data as NotificationData;
-      handleNotificationNavigation(data);
-    });
+      // Listen for notification taps
+      responseListener.current = addNotificationResponseListener((response) => {
+        const data = response.notification.request.content.data as NotificationData;
+        handleNotificationNavigation(data);
+      });
+    } catch (error) {
+      console.error('Failed to set up notification listeners:', error);
+    }
 
     // Cleanup listeners on unmount
     return () => {
+      isMounted = false;
       if (notificationListener.current) {
         notificationListener.current.remove();
       }

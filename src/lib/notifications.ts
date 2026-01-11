@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { PermissionStatus } from 'expo-modules-core';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -23,57 +24,71 @@ export interface NotificationData {
   [key: string]: unknown;
 }
 
+// Helper to add timeout to promises
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), timeoutMs)),
+  ]);
+}
+
 // Register for push notifications and get the token
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
-  let token: string | null = null;
-
-  // Push notifications only work on physical devices
-  if (!Device.isDevice) {
-    console.log('Push notifications require a physical device');
-    return null;
-  }
-
-  // Check if we're on Android and set up the notification channel
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'FAMAGENDA',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#1B7C7C',
-      sound: 'default',
-    });
-
-    await Notifications.setNotificationChannelAsync('events', {
-      name: 'Eventos',
-      description: 'Notificações de eventos do calendário',
-      importance: Notifications.AndroidImportance.HIGH,
-      sound: 'default',
-    });
-
-    await Notifications.setNotificationChannelAsync('reminders', {
-      name: 'Lembretes',
-      description: 'Lembretes de tarefas e compras',
-      importance: Notifications.AndroidImportance.DEFAULT,
-      sound: 'default',
-    });
-  }
-
-  // Check current permission status
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-
-  // If not granted, request permission
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-
-  if (finalStatus !== 'granted') {
-    console.log('Push notification permission not granted');
-    return null;
-  }
-
   try {
+    // Push notifications only work on physical devices
+    if (!Device.isDevice) {
+      console.log('Push notifications require a physical device');
+      return null;
+    }
+
+    // Check if we're on Android and set up the notification channel
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'FAMAGENDA',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#1B7C7C',
+        sound: 'default',
+      });
+
+      await Notifications.setNotificationChannelAsync('events', {
+        name: 'Eventos',
+        description: 'Notificações de eventos do calendário',
+        importance: Notifications.AndroidImportance.HIGH,
+        sound: 'default',
+      });
+
+      await Notifications.setNotificationChannelAsync('reminders', {
+        name: 'Lembretes',
+        description: 'Lembretes de tarefas e compras',
+        importance: Notifications.AndroidImportance.DEFAULT,
+        sound: 'default',
+      });
+    }
+
+    // Check current permission status with timeout
+    const permissionResult = await withTimeout(
+      Notifications.getPermissionsAsync(),
+      5000,
+      { status: PermissionStatus.UNDETERMINED, expires: 'never' as const, granted: false, canAskAgain: true }
+    );
+    let finalStatus = permissionResult.status;
+
+    // If not granted, request permission with timeout
+    if (finalStatus !== PermissionStatus.GRANTED) {
+      const requestResult = await withTimeout(
+        Notifications.requestPermissionsAsync(),
+        10000,
+        { status: PermissionStatus.UNDETERMINED, expires: 'never' as const, granted: false, canAskAgain: true }
+      );
+      finalStatus = requestResult.status;
+    }
+
+    if (finalStatus !== PermissionStatus.GRANTED) {
+      console.log('Push notification permission not granted');
+      return null;
+    }
+
     // Get the project ID from Constants
     const projectId = Constants.expoConfig?.extra?.eas?.projectId;
 
@@ -82,21 +97,29 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
       return null;
     }
 
-    // Get the Expo push token
-    const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId,
-    });
-    token = tokenData.data;
+    // Get the Expo push token with timeout
+    const tokenData = await withTimeout(
+      Notifications.getExpoPushTokenAsync({ projectId }),
+      10000,
+      null
+    );
+
+    if (!tokenData) {
+      console.log('Failed to get push token (timeout)');
+      return null;
+    }
+
+    const token = tokenData.data;
 
     // Save token to AsyncStorage
     await AsyncStorage.setItem(PUSH_TOKEN_KEY, token);
 
     console.log('Push token:', token);
+    return token;
   } catch (error) {
-    console.error('Error getting push token:', error);
+    console.error('Error in registerForPushNotificationsAsync:', error);
+    return null;
   }
-
-  return token;
 }
 
 // Get saved push token

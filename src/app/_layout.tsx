@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack, useNavigationContainerRef } from 'expo-router';
+import { Stack, useRootNavigationState } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -15,16 +15,26 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null | undefined }) {
-  const navigationRef = useNavigationContainerRef();
+  const rootNavigationState = useRootNavigationState();
 
-  // Initialize push notifications
+  // Initialize push notifications (non-blocking)
   const { expoPushToken } = useNotifications();
 
+  // Hide splash screen when navigation is ready
   useEffect(() => {
-    if (navigationRef?.isReady()) {
+    if (rootNavigationState?.key) {
       SplashScreen.hideAsync();
     }
-  }, [navigationRef]);
+  }, [rootNavigationState?.key]);
+
+  // Fallback: hide splash screen after timeout to prevent freeze
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      SplashScreen.hideAsync();
+    }, 3000);
+
+    return () => clearTimeout(timeout);
+  }, []);
 
   useEffect(() => {
     if (expoPushToken) {
