@@ -22,7 +22,8 @@
         "NSPhotoLibraryUsageDescription": "FAMAGENDA precisa acessar suas fotos para selecionar imagens de perfil.",
         "NSCalendarsUsageDescription": "FAMAGENDA sincroniza eventos com seu calendario.",
         "NSContactsUsageDescription": "FAMAGENDA usa seus contatos para convidar membros da familia.",
-        "NSLocationWhenInUseUsageDescription": "FAMAGENDA usa sua localizacao para lembretes baseados em local."
+        "NSLocationWhenInUseUsageDescription": "FAMAGENDA usa sua localizacao para lembretes baseados em local.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -31,7 +32,17 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FDF8F3"
       },
-      "package": "com.famagenda.app"
+      "package": "com.famagenda.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -79,8 +90,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": ""
+        "projectId": "a4fb351c-fff8-4ecf-8c2f-9251c39f5af0"
       }
-    }
+    },
+    "owner": "bodimfm"
   }
 }
