@@ -7,6 +7,7 @@ import { useColorScheme } from '@/lib/useColorScheme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { useNotifications } from '@/lib/useNotifications';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -16,11 +17,20 @@ const queryClient = new QueryClient();
 function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null | undefined }) {
   const navigationRef = useNavigationContainerRef();
 
+  // Initialize push notifications
+  const { expoPushToken } = useNotifications();
+
   useEffect(() => {
     if (navigationRef?.isReady()) {
       SplashScreen.hideAsync();
     }
   }, [navigationRef]);
+
+  useEffect(() => {
+    if (expoPushToken) {
+      console.log('Push notifications registered:', expoPushToken);
+    }
+  }, [expoPushToken]);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
