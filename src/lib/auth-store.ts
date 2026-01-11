@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createFamilyInDb, findFamilyByCode } from './supabase-sync';
 
 export interface User {
   id: string;
@@ -12,6 +13,7 @@ export interface User {
 
 export interface FamilyGroup {
   id: string;
+  dbId?: number; // ID no banco de dados Supabase
   name: string;
   inviteCode: string;
   createdBy: string;
@@ -113,14 +115,18 @@ export const useAuthStore = create<AuthState>()(
         set({ user: null, isAuthenticated: false });
       },
 
-      createFamilyGroup: (name: string) => {
+      createFamilyGroup: async (name: string) => {
         const state = get();
         if (!state.user) return;
 
+        // Criar família no banco de dados
+        const dbFamily = await createFamilyInDb(name);
+
         const newGroup: FamilyGroup = {
           id: generateId(),
+          dbId: dbFamily?.id, // Salvar ID do banco
           name,
-          inviteCode: generateInviteCode(),
+          inviteCode: dbFamily?.invite_code || generateInviteCode(),
           createdBy: state.user.id,
           members: [state.user.id],
         };
@@ -132,21 +138,34 @@ export const useAuthStore = create<AuthState>()(
         const state = get();
         if (!state.user) return false;
 
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        // Buscar família no banco de dados pelo código
+        const dbFamily = await findFamilyByCode(inviteCode);
 
-        // In production, this would validate against a real backend
-        // For demo, we'll create a mock group if code format is valid
-        if (inviteCode.length === 6) {
-          const mockGroup: FamilyGroup = {
+        if (dbFamily) {
+          const joinedGroup: FamilyGroup = {
             id: generateId(),
-            name: 'Familia',
+            dbId: dbFamily.id, // Salvar ID do banco
+            name: dbFamily.name,
+            inviteCode: dbFamily.invite_code,
+            createdBy: 'other-user',
+            members: ['other-user', state.user.id],
+          };
+
+          set({ familyGroup: joinedGroup });
+          return true;
+        }
+
+        // Fallback: se não encontrar no banco, aceitar código de 6 caracteres (modo offline)
+        if (inviteCode.length === 6) {
+          const offlineGroup: FamilyGroup = {
+            id: generateId(),
+            name: 'Família',
             inviteCode: inviteCode.toUpperCase(),
             createdBy: 'other-user',
             members: ['other-user', state.user.id],
           };
 
-          set({ familyGroup: mockGroup });
+          set({ familyGroup: offlineGroup });
           return true;
         }
 
