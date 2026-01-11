@@ -1,10 +1,12 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import React, { useState, useMemo, useCallback } from 'react';
+import { View, Text, ScrollView, Pressable, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Plus, ChevronLeft, ChevronRight, Users, Sparkles, ShoppingCart, Syringe, Droplets, Car } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useFamilyStore, CalendarEvent, FamilyMember, Pet, PetVaccine, PetBath, PickupDropoff } from '@/lib/store';
+import { useAuthStore } from '@/lib/auth-store';
+import { syncAndHydrateStore } from '@/lib/supabase-sync';
 import { AIPanoramaModal } from '@/components/AIPanoramaModal';
 
 const DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
@@ -138,11 +140,21 @@ export default function AgendaScreen() {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showAIPanorama, setShowAIPanorama] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const events = useFamilyStore((s) => s.events);
   const members = useFamilyStore((s) => s.members);
   const pets = useFamilyStore((s) => s.pets);
   const shoppingItems = useFamilyStore((s) => s.shoppingItems);
   const pickups = useFamilyStore((s) => s.pickups);
+  const familyGroup = useAuthStore((s) => s.familyGroup);
+
+  // Pull-to-refresh handler
+  const onRefresh = useCallback(async () => {
+    if (!familyGroup?.dbId) return;
+    setRefreshing(true);
+    await syncAndHydrateStore(familyGroup.dbId);
+    setRefreshing(false);
+  }, [familyGroup?.dbId]);
 
   const currentMonth = selectedDate.getMonth();
   const currentYear = selectedDate.getFullYear();
@@ -364,7 +376,18 @@ export default function AgendaScreen() {
 
   return (
     <View className="flex-1 bg-cream">
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+      <ScrollView
+        className="flex-1"
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#1B7C7C"
+            colors={['#1B7C7C']}
+          />
+        }
+      >
         {/* Family Members Row */}
         <View className="px-5 pt-4 pb-2">
           <View className="flex-row items-center justify-between">

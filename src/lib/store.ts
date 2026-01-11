@@ -163,6 +163,16 @@ interface FamilyStore {
   removePetVaccine: (petId: string, vaccineId: string) => void;
   addPetBath: (petId: string, bath: Omit<PetBath, 'id' | 'petId'>) => void;
   removePetBath: (petId: string, bathId: string) => void;
+
+  // Bulk setters for sync
+  setMembers: (members: FamilyMember[]) => void;
+  setEvents: (events: CalendarEvent[]) => void;
+  setPickups: (pickups: PickupDropoff[]) => void;
+  setShoppingItems: (items: ShoppingItem[]) => void;
+  setWishlistItems: (items: WishlistItem[]) => void;
+  setImportantDates: (dates: ImportantDate[]) => void;
+  setCustomLists: (lists: CustomList[]) => void;
+  setPets: (pets: Pet[]) => void;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 15);
@@ -473,6 +483,16 @@ export const useFamilyStore = create<FamilyStore>()(
               : p
           ),
         })),
+
+      // Bulk setters for sync
+      setMembers: (members) => set({ members }),
+      setEvents: (events) => set({ events }),
+      setPickups: (pickups) => set({ pickups }),
+      setShoppingItems: (shoppingItems) => set({ shoppingItems }),
+      setWishlistItems: (wishlistItems) => set({ wishlistItems }),
+      setImportantDates: (importantDates) => set({ importantDates }),
+      setCustomLists: (customLists) => set({ customLists }),
+      setPets: (pets) => set({ pets }),
     }),
     {
       name: 'family-storage',

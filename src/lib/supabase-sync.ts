@@ -15,7 +15,22 @@ import type {
   DbPet,
   DbPetVaccine,
   DbPetBath,
+  DbFamilyMember,
 } from './supabase';
+import { useFamilyStore } from './store';
+import type {
+  CalendarEvent,
+  PickupDropoff,
+  ShoppingItem,
+  WishlistItem,
+  ImportantDate,
+  CustomList,
+  CustomListItem,
+  Pet,
+  PetVaccine,
+  PetBath,
+  FamilyMember,
+} from './store';
 
 // ==================== EVENTOS ====================
 
@@ -240,12 +255,13 @@ export interface SyncResult {
 // Sincronizar todos os dados de uma família
 export async function syncAllFamilyData(familyId: number) {
   try {
-    const [events, pickups, importantDates, customLists, pets] = await Promise.all([
+    const [events, pickups, importantDates, customLists, pets, wishlistItems] = await Promise.all([
       syncEvents(familyId),
       syncPickups(familyId),
       syncImportantDates(familyId),
       syncCustomLists(familyId),
       syncPets(familyId),
+      syncWishlistItems(familyId),
     ]);
 
     return {
@@ -256,6 +272,7 @@ export async function syncAllFamilyData(familyId: number) {
         importantDates,
         customLists,
         pets,
+        wishlistItems,
       },
     };
   } catch (error) {
@@ -264,5 +281,181 @@ export async function syncAllFamilyData(familyId: number) {
       success: false,
       error: 'Erro ao sincronizar dados.',
     };
+  }
+}
+
+// ==================== MAPEAMENTO DB → STORE ====================
+
+function mapDbEventToStore(dbEvent: DbEvent): CalendarEvent {
+  return {
+    id: String(dbEvent.id),
+    title: dbEvent.title,
+    date: dbEvent.start_time.split('T')[0], // Extract date from ISO
+    time: dbEvent.start_time.split('T')[1]?.substring(0, 5), // Extract time HH:MM
+    membersInvolved: [], // Would need to fetch from event_participants
+    description: dbEvent.description,
+    type: 'event', // Default, as DB doesn't have this field
+  };
+}
+
+function mapDbPickupToStore(dbPickup: DbPickup): PickupDropoff {
+  return {
+    id: String(dbPickup.id),
+    childName: dbPickup.child_name,
+    responsibleMemberId: String(dbPickup.responsible_member_id),
+    type: dbPickup.type,
+    location: dbPickup.location,
+    time: dbPickup.time,
+    dayOfWeek: dbPickup.day_of_week,
+    recurring: dbPickup.recurring,
+  };
+}
+
+function mapDbWishlistItemToStore(dbItem: DbWishlistItem): WishlistItem {
+  return {
+    id: String(dbItem.id),
+    name: dbItem.name,
+    description: dbItem.description,
+    price: dbItem.price,
+    link: dbItem.link,
+    addedBy: dbItem.added_by ? String(dbItem.added_by) : '',
+    priority: dbItem.priority,
+  };
+}
+
+function mapDbImportantDateToStore(dbDate: DbImportantDate): ImportantDate {
+  return {
+    id: String(dbDate.id),
+    title: dbDate.title,
+    date: dbDate.date,
+    recurring: dbDate.recurrence !== 'none',
+    type: dbDate.type as 'birthday' | 'anniversary' | 'holiday' | 'other',
+    memberId: dbDate.member_id ? String(dbDate.member_id) : undefined,
+  };
+}
+
+function mapDbCustomListItemToStore(dbItem: DbCustomListItem): CustomListItem {
+  return {
+    id: String(dbItem.id),
+    text: dbItem.text,
+    completed: dbItem.completed,
+    addedBy: dbItem.added_by ? String(dbItem.added_by) : undefined,
+    createdAt: dbItem.created_at,
+  };
+}
+
+function mapDbCustomListToStore(dbList: DbCustomList, items: DbCustomListItem[]): CustomList {
+  return {
+    id: String(dbList.id),
+    name: dbList.name,
+    icon: dbList.icon,
+    color: dbList.color,
+    items: items.map(mapDbCustomListItemToStore),
+    createdAt: dbList.created_at,
+  };
+}
+
+function mapDbPetVaccineToStore(dbVaccine: DbPetVaccine): PetVaccine {
+  return {
+    id: String(dbVaccine.id),
+    petId: String(dbVaccine.pet_id),
+    name: dbVaccine.name,
+    type: dbVaccine.type || '',
+    date: dbVaccine.date,
+    nextDate: dbVaccine.next_date,
+    notes: dbVaccine.notes,
+  };
+}
+
+function mapDbPetBathToStore(dbBath: DbPetBath): PetBath {
+  return {
+    id: String(dbBath.id),
+    petId: String(dbBath.pet_id),
+    date: dbBath.date,
+    location: dbBath.location,
+    notes: dbBath.notes,
+  };
+}
+
+function mapDbPetToStore(dbPet: DbPet, vaccines: DbPetVaccine[], baths: DbPetBath[]): Pet {
+  return {
+    id: String(dbPet.id),
+    name: dbPet.name,
+    type: dbPet.type,
+    breed: dbPet.breed,
+    birthDate: dbPet.birth_date,
+    color: dbPet.color,
+    photo: dbPet.photo_url,
+    vaccines: vaccines.filter(v => v.pet_id === dbPet.id).map(mapDbPetVaccineToStore),
+    baths: baths.filter(b => b.pet_id === dbPet.id).map(mapDbPetBathToStore),
+    createdAt: dbPet.created_at,
+  };
+}
+
+// ==================== SINCRONIZAÇÃO E HIDRATAÇÃO DA STORE ====================
+
+/**
+ * Sincroniza dados do Supabase e atualiza a store local
+ * Esta função pode ser chamada de qualquer lugar (não depende de hooks)
+ */
+export async function syncAndHydrateStore(familyId: number): Promise<{ success: boolean; error?: string }> {
+  if (!supabase.isConfigured()) {
+    console.log('Supabase não configurado, usando dados locais');
+    return { success: true }; // Não é erro, apenas não sincroniza
+  }
+
+  try {
+    // 1. Buscar todos os dados do banco
+    const result = await syncAllFamilyData(familyId);
+
+    if (!result.success || !result.data) {
+      return { success: false, error: result.error };
+    }
+
+    const { events, pickups, importantDates, customLists, pets, wishlistItems } = result.data;
+
+    // 2. Buscar itens de cada lista personalizada
+    const customListsWithItems: CustomList[] = [];
+    for (const list of customLists) {
+      const items = await syncCustomListItems(list.id);
+      customListsWithItems.push(mapDbCustomListToStore(list, items));
+    }
+
+    // 3. Buscar vacinas e banhos de cada pet
+    const allVaccines: DbPetVaccine[] = [];
+    const allBaths: DbPetBath[] = [];
+    for (const pet of pets) {
+      const vaccines = await syncPetVaccines(pet.id);
+      const baths = await syncPetBaths(pet.id);
+      allVaccines.push(...vaccines);
+      allBaths.push(...baths);
+    }
+
+    // 4. Mapear e hidratar a store
+    const store = useFamilyStore.getState();
+
+    // Eventos
+    store.setEvents(events.map(mapDbEventToStore));
+
+    // Transporte
+    store.setPickups(pickups.map(mapDbPickupToStore));
+
+    // Lista de desejos
+    store.setWishlistItems(wishlistItems.map(mapDbWishlistItemToStore));
+
+    // Datas importantes
+    store.setImportantDates(importantDates.map(mapDbImportantDateToStore));
+
+    // Listas personalizadas (já com itens)
+    store.setCustomLists(customListsWithItems);
+
+    // Pets (com vacinas e banhos)
+    store.setPets(pets.map(pet => mapDbPetToStore(pet, allVaccines, allBaths)));
+
+    console.log('Sincronização concluída com sucesso');
+    return { success: true };
+  } catch (error) {
+    console.error('Erro na sincronização:', error);
+    return { success: false, error: 'Erro ao sincronizar dados' };
   }
 }

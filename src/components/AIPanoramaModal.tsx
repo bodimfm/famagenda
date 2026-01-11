@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView, ActivityIndicator, Modal } from 'react-native';
-import { X, Sparkles, RefreshCw } from 'lucide-react-native';
+import { X, Sparkles, RefreshCw, Cloud } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
 import { useMutation } from '@tanstack/react-query';
 import { useFamilyStore } from '@/lib/store';
+import { useAuthStore } from '@/lib/auth-store';
+import { syncAndHydrateStore } from '@/lib/supabase-sync';
 import { generateFamilyOverview } from '@/lib/openai';
 
 interface AIPanoramaModalProps {
@@ -13,27 +15,33 @@ interface AIPanoramaModalProps {
 }
 
 export function AIPanoramaModal({ visible, onClose }: AIPanoramaModalProps) {
-  const members = useFamilyStore((s) => s.members);
-  const events = useFamilyStore((s) => s.events);
-  const pickups = useFamilyStore((s) => s.pickups);
-  const shoppingItems = useFamilyStore((s) => s.shoppingItems);
-  const wishlistItems = useFamilyStore((s) => s.wishlistItems);
-  const importantDates = useFamilyStore((s) => s.importantDates);
-  const customLists = useFamilyStore((s) => s.customLists);
-  const pets = useFamilyStore((s) => s.pets);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const familyGroup = useAuthStore((s) => s.familyGroup);
 
   const mutation = useMutation({
-    mutationFn: () =>
-      generateFamilyOverview({
-        members,
-        events,
-        pickups,
-        shoppingItems,
-        wishlistItems,
-        importantDates,
-        customLists,
-        pets,
-      }),
+    mutationFn: async () => {
+      // 1. Sincronizar dados do banco primeiro
+      if (familyGroup?.dbId) {
+        setIsSyncing(true);
+        await syncAndHydrateStore(familyGroup.dbId);
+        setIsSyncing(false);
+      }
+
+      // 2. Obter dados atualizados da store
+      const store = useFamilyStore.getState();
+
+      // 3. Gerar resumo com dados frescos
+      return generateFamilyOverview({
+        members: store.members,
+        events: store.events,
+        pickups: store.pickups,
+        shoppingItems: store.shoppingItems,
+        wishlistItems: store.wishlistItems,
+        importantDates: store.importantDates,
+        customLists: store.customLists,
+        pets: store.pets,
+      });
+    },
   });
 
   React.useEffect(() => {
@@ -45,6 +53,8 @@ export function AIPanoramaModal({ visible, onClose }: AIPanoramaModalProps) {
   const handleRefresh = () => {
     mutation.mutate();
   };
+
+  const isLoading = isSyncing || mutation.isPending;
 
   return (
     <Modal
@@ -82,15 +92,25 @@ export function AIPanoramaModal({ visible, onClose }: AIPanoramaModalProps) {
 
         {/* Content */}
         <ScrollView className="flex-1 px-5 pt-6" showsVerticalScrollIndicator={false}>
-          {mutation.isPending ? (
+          {isLoading ? (
             <Animated.View
               entering={FadeIn}
               className="items-center justify-center py-16"
             >
               <ActivityIndicator size="large" color="#1B7C7C" />
               <Text className="text-darkNavy/60 mt-4 text-center">
-                Analisando as obrigacoes da familia...
+                {isSyncing
+                  ? 'Sincronizando dados...'
+                  : 'Analisando as obrigacoes da familia...'}
               </Text>
+              {isSyncing && (
+                <View className="flex-row items-center mt-2">
+                  <Cloud size={16} color="#9CA3AF" />
+                  <Text className="text-darkNavy/40 text-sm ml-1">
+                    Buscando dados atualizados
+                  </Text>
+                </View>
+              )}
             </Animated.View>
           ) : mutation.isError ? (
             <Animated.View

@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useMutation } from '@tanstack/react-query';
 import { useAuthStore } from '@/lib/auth-store';
+import { syncAndHydrateStore } from '@/lib/supabase-sync';
 import * as Haptics from 'expo-haptics';
 
 export default function LoginScreen() {
@@ -37,8 +38,15 @@ export default function LoginScreen() {
       }
       return true;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Sincronizar dados se usuário já tiver uma família
+      const familyGroup = useAuthStore.getState().familyGroup;
+      if (familyGroup?.dbId) {
+        await syncAndHydrateStore(familyGroup.dbId);
+      }
+
       router.replace('/(tabs)');
     },
     onError: (err: Error) => {
