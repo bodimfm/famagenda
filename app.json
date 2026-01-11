@@ -1,0 +1,86 @@
+{
+  "expo": {
+    "name": "FAMAGENDA",
+    "slug": "famagenda",
+    "scheme": "famagenda",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FDF8F3"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.famagenda.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "FAMAGENDA precisa acessar a camera para capturar fotos de perfil e documentos.",
+        "NSPhotoLibraryUsageDescription": "FAMAGENDA precisa acessar suas fotos para selecionar imagens de perfil.",
+        "NSCalendarsUsageDescription": "FAMAGENDA sincroniza eventos com seu calendario.",
+        "NSContactsUsageDescription": "FAMAGENDA usa seus contatos para convidar membros da familia.",
+        "NSLocationWhenInUseUsageDescription": "FAMAGENDA usa sua localizacao para lembretes baseados em local."
+      }
+    },
+    "android": {
+      "edgeToEdgeEnabled": true,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FDF8F3"
+      },
+      "package": "com.famagenda.app"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permitir que FAMAGENDA acesse sua camera."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permitir que FAMAGENDA acesse suas fotos."
+        }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Permitir que FAMAGENDA acesse seu calendario."
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Permitir que FAMAGENDA acesse seus contatos."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Permitir que FAMAGENDA acesse sua localizacao."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#1B7C7C"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": ""
+      }
+    }
+  }
+}
