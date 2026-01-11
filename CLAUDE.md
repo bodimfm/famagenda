@@ -155,6 +155,13 @@ eas build --platform ios --profile production
 ```
 
 ### Submitting to App Store
+
+**Prerequisites:**
+1. App must be created in App Store Connect with a unique bundle identifier
+2. Update `eas.json` with your App Store Connect App ID:
+   - Find your App ID in App Store Connect under App Information
+   - Replace `PLACEHOLDER_APP_STORE_CONNECT_APP_ID` in `eas.json` with your actual App ID
+
 ```bash
 # Submit last build to App Store Connect
 eas submit --platform ios

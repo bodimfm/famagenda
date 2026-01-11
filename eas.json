@@ -25,6 +25,10 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "PLACEHOLDER_APP_STORE_CONNECT_APP_ID"
+      }
+    }
   }
 }
