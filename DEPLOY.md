@@ -34,6 +34,8 @@ O arquivo `eas.json` já está configurado com os perfis necessários para iOS:
 }
 ```
 
+**Nota de Segurança:** Estes valores são identificadores de configuração (não são senhas ou chaves secretas). O `ascAppId` é público na App Store, o `appleTeamId` é visível para membros da equipe, e o `appleId` é um email. Credenciais sensíveis (senhas, certificados) são gerenciadas separadamente pelo EAS e nunca ficam em arquivos de configuração.
+
 ### 3. Obter IDs Necessários (se precisar atualizar)
 
 #### App Store Connect App ID (ascAppId)
@@ -115,6 +117,24 @@ Para gerar um App-Specific Password:
 
 ### Criptografia
 O app usa `ITSAppUsesNonExemptEncryption: false` porque não utiliza criptografia além da fornecida pela Apple.
+
+### Segurança e Credenciais
+
+**Identificadores vs Credenciais Secretas:**
+- Os valores em `eas.json` (`appleId`, `ascAppId`, `appleTeamId`) são **identificadores de configuração**, não credenciais secretas
+- Credenciais sensíveis (senhas, certificados, chaves privadas) são gerenciadas pelo EAS de forma segura e nunca aparecem em arquivos de configuração
+- EAS usa Apple App-Specific Passwords e App Store Connect API Keys para autenticação segura
+- Certificados e provisioning profiles são gerenciados pelo comando `eas credentials`
+
+**Gerenciamento de Credenciais:**
+```bash
+# Ver/gerenciar credenciais iOS
+eas credentials --platform ios
+
+# Configurar App Store Connect API Key (recomendado para CI/CD)
+eas credentials --platform ios
+# Escolha "App Store Connect API Key" no menu interativo
+```
 
 ## Troubleshooting
 
