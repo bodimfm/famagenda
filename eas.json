@@ -25,6 +25,12 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "bodimfm@gmail.com",
+        "ascAppId": "6740013313",
+        "appleTeamId": "W8W4YXE48X"
+      }
+    }
   }
 }

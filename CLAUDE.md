@@ -156,12 +156,22 @@ eas build --platform ios --profile production
 
 ### Submitting to App Store
 ```bash
-# Submit last build to App Store Connect
-eas submit --platform ios
+# Submit last production build to App Store Connect
+eas submit --platform ios --profile production
 
 # Or submit a specific build
 eas submit --platform ios --id [BUILD_ID]
+
+# For CI/CD (non-interactive)
+eas submit --platform ios --profile production --non-interactive
 ```
+
+**Configuration**: The `eas.json` file includes iOS submission settings in the `submit.production.ios` section:
+- `appleId`: Your Apple Developer account email
+- `ascAppId`: Your App Store Connect App ID (numeric, found in App Store Connect)
+- `appleTeamId`: Your Apple Team ID (found in App Store Connect under Users and Access)
+
+If these values are not set or incorrect, EAS CLI will prompt you interactively during submission.
 
 ## Code Conventions
 
